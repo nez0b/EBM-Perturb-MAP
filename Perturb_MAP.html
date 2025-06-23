@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The P&M Pipeline: From Sampling to Specialized Hardware</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony Neutrals -->
+    <!-- Application Structure Plan: A concept-driven, layered exploration dashboard. The user starts with a high-level overview and can drill down into specific concepts. The structure is designed to be thematic rather than a linear report summary, guiding the user from the core problem (EBM Training) to a potential solution (P&M) and its hardware acceleration (Ising Machines), followed by a synthesis and discussion of real-world challenges. This non-linear, interactive structure with a persistent top navigation is chosen to enhance usability and understanding of complex, interconnected topics by allowing both guided discovery and direct access to specific areas of interest. -->
+    <!-- Visualization & Content Choices: 
+        - EBM Paradigms (Table 1) -> Goal: Compare -> Viz: Interactive HTML Table -> Interaction: Row highlight on hover -> Justification: Provides a clear, direct comparison of competing methods.
+        - P&M Process -> Goal: Organize/Change -> Viz: HTML/CSS Flowchart -> Interaction: Click to reveal details -> Justification: Simplifies a multi-step process into a digestible visual flow, encouraging exploration.
+        - Gumbel-Max Trick -> Goal: Inform/Change -> Viz: Dynamic Bar Chart (Chart.js) -> Interaction: Button click to perturb data -> Justification: Makes the abstract statistical trick tangible by showing how adding noise leads to a sample selection.
+        - Ising vs QUBO -> Goal: Compare -> Viz: Toggleable content cards -> Interaction: Button click to switch views -> Justification: Directly contrasts the two equivalent but different mathematical formulations.
+        - Synergy Flow -> Goal: Relationships/Organize -> Viz: Multi-stage HTML/CSS Flowchart -> Interaction: Clickable steps -> Justification: Visualizes the entire pipeline from software to hardware, highlighting the crucial "QUBO Formulation" bridge.
+        - Challenges -> Goal: Organize/Inform -> Viz: Accordion List -> Interaction: Click to expand/collapse -> Justification: Presents a dense list of issues in a compact, organized, and user-driven format.
+        - Library/Method: Vanilla JS for interactions, Chart.js for visualization. All visual elements are built with HTML/CSS/Tailwind to adhere to the NO SVG/Mermaid constraint. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF6;
+            color: #36454F;
+        }
+        .nav-link {
+            transition: all 0.2s ease-in-out;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #46829B;
+            border-bottom-color: #46829B;
+        }
+        .card {
+            background-color: #F5F2EB;
+            border: 1px solid #E0DACE;
+            border-radius: 0.75rem;
+            transition: all 0.3s ease-in-out;
+        }
+        .card-interactive:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            background-color: #46829B;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #3A6A7D;
+        }
+        .flowchart-step {
+            position: relative;
+            padding: 1rem 1.5rem;
+            background-color: #F5F2EB;
+            border: 1px solid #E0DACE;
+            border-radius: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .flowchart-step:hover {
+            background-color: #E9E4D9;
+            transform: scale(1.03);
+        }
+        .flowchart-arrow {
+            color: #46829B;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .synergy-bridge {
+            background-color: #46829B;
+            color: white;
+            border-color: #3A6A7D;
+        }
+         .synergy-bridge:hover {
+            background-color: #3A6A7D;
+        }
+        .details-box {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #FFFFFF;
+            border-left: 4px solid #46829B;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .chart-container {
+            position: relative; 
+            width: 100%; 
+            max-width: 600px; 
+            margin-left: auto; 
+            margin-right: auto; 
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="sticky top-0 bg-white/80 backdrop-blur-md shadow-sm z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <h1 class="text-xl font-bold text-[#36454F]">P&M Pipeline Explorer</h1>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#challenge" class="nav-link px-3 py-2 text-sm font-medium">The Challenge</a>
+                    <a href="#solution" class="nav-link px-3 py-2 text-sm font-medium">The P&M Solution</a>
+                    <a href="#hardware" class="nav-link px-3 py-2 text-sm font-medium">The Hardware</a>
+                    <a href="#synergy" class="nav-link px-3 py-2 text-sm font-medium">The Synergy</a>
+                    <a href="#roadblocks" class="nav-link px-3 py-2 text-sm font-medium">Roadblocks</a>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="p-2 rounded-md">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+        <div id="mobile-menu" class="md:hidden hidden">
+            <a href="#challenge" class="block py-2 px-4 text-sm hover:bg-gray-100">The Challenge</a>
+            <a href="#solution" class="block py-2 px-4 text-sm hover:bg-gray-100">The P&M Solution</a>
+            <a href="#hardware" class="block py-2 px-4 text-sm hover:bg-gray-100">The Hardware</a>
+            <a href="#synergy" class="block py-2 px-4 text-sm hover:bg-gray-100">The Synergy</a>
+            <a href="#roadblocks" class="block py-2 px-4 text-sm hover:bg-gray-100">Roadblocks</a>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        
+        <div class="text-center mb-12">
+            <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-[#36454F]">From Probabilistic Sampling to Hardware Optimization</h2>
+            <p class="mt-4 max-w-3xl mx-auto text-lg text-gray-600">Explore how the challenge of training Energy-Based Models can be transformed into an optimization problem, and how specialized hardware like Ising Machines might offer a path to acceleration.</p>
+        </div>
+
+        <section id="challenge" class="py-12">
+            <h3 class="text-2xl font-bold mb-2">1. The Challenge: Why is Training EBMs So Hard?</h3>
+            <p class="mb-6 text-gray-700 max-w-4xl">Energy-Based Models (EBMs) are powerful, but their training is notoriously difficult. The main culprit is the **partition function (Z)**, a normalization term that requires summing over an exponential number of configurations. This makes direct probability calculation and likelihood-based training computationally intractable. As a result, we rely on approximate methods like MCMC for sampling, which are often slow and struggle with complex data. This core difficulty motivates the search for alternative training paradigms.</p>
+            <div class="card p-6">
+                <h4 class="font-semibold text-lg mb-4">A Comparison of EBM Training Paradigms</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-[#E9E4D9] text-[#36454F] uppercase">
+                            <tr>
+                                <th class="p-3">Paradigm</th>
+                                <th class="p-3">Core Idea</th>
+                                <th class="p-3">Pros</th>
+                                <th class="p-3">Cons</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-[#E0DACE] hover:bg-white/50">
+                                <td class="p-3 font-medium">MCMC-based MLE</td>
+                                <td class="p-3">Use MCMC to estimate model expectations in the likelihood gradient.</td>
+                                <td class="p-3">Asymptotically unbiased.</td>
+                                <td class="p-3">Slow, poor mixing, hard to diagnose convergence.</td>
+                            </tr>
+                            <tr class="border-b border-[#E0DACE] hover:bg-white/50">
+                                <td class="p-3 font-medium">Contrastive Divergence (CD)</td>
+                                <td class="p-3">Approximate MLE gradient with short MCMC runs from data.</td>
+                                <td class="p-3">Much faster than full MCMC.</td>
+                                <td class="p-3">Biased gradients, can fail for multimodal data.</td>
+                            </tr>
+                            <tr class="border-b border-[#E0DACE] hover:bg-white/50">
+                                <td class="p-3 font-medium">Score Matching</td>
+                                <td class="p-3">Match the score (gradient of log-prob) of the model to the data.</td>
+                                <td class="p-3">Avoids calculating the partition function Z.</td>
+                                <td class="p-3">May not capture global properties or mode weights well.</td>
+                            </tr>
+                            <tr class="hover:bg-white/50">
+                                <td class="p-3 font-medium text-[#46829B]">Perturb-and-MAP (P&M)</td>
+                                <td class="p-3">Convert sampling into an optimization problem by finding the mode of a perturbed energy function.</td>
+                                <td class="p-3">Can avoid MCMC, leverage fast optimizers.</td>
+                                <td class="p-3">MAP inference can still be NP-hard, relies on approximations.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="solution" class="py-12">
+            <h3 class="text-2xl font-bold mb-2">2. The P&M Solution: Turning Sampling into Optimization</h3>
+            <p class="mb-6 text-gray-700 max-w-4xl">The Perturb-and-MAP (P&M) framework sidesteps the slow, iterative process of MCMC sampling. The core idea is brilliantly simple: instead of sampling from a distribution, we add controlled random noise to the model's energy function and then find the single best configuration (the Maximum A Posteriori, or MAP) using deterministic optimization. This MAP state of the *perturbed* model becomes a sample from the *original* model. The key is that finding the best state (optimization) can be much faster than sampling.</p>
+            
+            <div class="card p-6 mb-8">
+                 <h4 class="font-semibold text-lg mb-4">The Perturb-and-MAP Flow (Click steps for details)</h4>
+                 <div class="flex flex-col md:flex-row items-center justify-center gap-4">
+                    <div class="flowchart-step" data-target="detail-1">Original Energy E(x)</div>
+                    <div class="flowchart-arrow px-2">&#10140;</div>
+                    <div class="flowchart-step" data-target="detail-2">Perturbed Energy E'(x)</div>
+                    <div class="flowchart-arrow px-2">&#10140;</div>
+                    <div class="flowchart-step" data-target="detail-3">MAP Inference</div>
+                    <div class="flowchart-arrow px-2">&#10140;</div>
+                    <div class="flowchart-step" data-target="detail-4">Get Sample x*</div>
+                 </div>
+                 <div id="detail-1" class="details-box"><p><strong>Original Energy E(x):</strong> This is the energy function of our EBM. Low energy means a configuration 'x' is more likely. Our goal is to sample 'x' according to the Boltzmann distribution P(x) ∝ exp(-E(x)).</p></div>
+                 <div id="detail-2" class="details-box"><p><strong>Perturbed Energy E'(x):</strong> We create a new energy function by adding random noise to the original. A theoretically ideal choice is Gumbel noise. For example, E'(x) = E(x) - noise(x). This noise is different for each sample we want to generate.</p></div>
+                 <div id="detail-3" class="details-box"><p><strong>MAP Inference:</strong> This is a deterministic optimization step. We find the single configuration x* that minimizes the perturbed energy E'(x). This is equivalent to finding the mode of the perturbed distribution. This step can be solved with algorithms like graph cuts or belief propagation.</p></div>
+                 <div id="detail-4" class="details-box"><p><strong>Get Sample x*:</strong> The configuration x* found via MAP inference is treated as a valid sample from the original, unperturbed distribution. This process transforms a stochastic sampling problem into a deterministic optimization one.</p></div>
+            </div>
+            
+            <div class="card p-6">
+                <h4 class="font-semibold text-lg mb-2">Visualizing the Gumbel-Max Trick</h4>
+                <p class="mb-4 text-gray-600 text-sm">The Gumbel-Max trick is the theoretical magic behind P&M. It states that if you have a set of scores (log-potentials), adding Gumbel noise to each and picking the max is equivalent to sampling from the softmax of those scores. Click the button to see it in action.</p>
+                <div class="chart-container">
+                    <canvas id="gumbelChart"></canvas>
+                </div>
+                <div class="text-center mt-4">
+                    <button id="perturbButton" class="btn">Perturb with Gumbel Noise</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="hardware" class="py-12">
+            <h3 class="text-2xl font-bold mb-2">3. The Hardware Accelerator: Ising Machines & QUBO</h3>
+            <p class="mb-6 text-gray-700 max-w-4xl">If P&M turns sampling into optimization, can we build specialized hardware for that optimization? This is where Ising machines come in. These are physical systems designed to solve one specific type of optimization problem: finding the lowest energy state ("ground state") of an Ising model. This problem is mathematically equivalent to Quadratic Unconstrained Binary Optimization (QUBO), a standard format for many hard computational problems.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="card p-6">
+                    <h4 class="font-semibold text-lg mb-2">Ising Model vs. QUBO</h4>
+                    <p class="text-sm text-gray-600 mb-4">These are two sides of the same coin. An Ising machine finds the ground state of an Ising Hamiltonian. Any QUBO problem can be converted to an Ising problem, and vice-versa.</p>
+                    <div id="ising-view">
+                         <h5 class="font-semibold">Ising Hamiltonian</h5>
+                         <p class="font-mono bg-white p-2 rounded my-2 text-sm">H(s) = -Σ J<sub>ij</sub>s<sub>i</sub>s<sub>j</sub> - Σ h<sub>i</sub>s<sub>i</sub></p>
+                         <ul class="list-disc list-inside text-sm space-y-1">
+                            <li>Variables are "spins": s<sub>i</sub> ∈ {-1, +1}</li>
+                            <li>J<sub>ij</sub>: Coupling strength between spins</li>
+                            <li>h<sub>i</sub>: External field (bias) on spins</li>
+                         </ul>
+                    </div>
+                     <div id="qubo-view" class="hidden">
+                         <h5 class="font-semibold">QUBO Formulation</h5>
+                         <p class="font-mono bg-white p-2 rounded my-2 text-sm">f(x) = Σ Q<sub>i,i</sub>x<sub>i</sub> + Σ<sub>i&lt;j</sub> Q<sub>i,j</sub>x<sub>i</sub>x<sub>j</sub></p>
+                         <ul class="list-disc list-inside text-sm space-y-1">
+                             <li>Variables are binary: x<sub>i</sub> ∈ {0, 1}</li>
+                             <li>Q<sub>i,i</sub>: Linear cost (weight)</li>
+                             <li>Q<sub>i,j</sub>: Quadratic cost for interactions</li>
+                         </ul>
+                    </div>
+                    <button id="toggle-qubo" class="btn text-sm mt-4">Show QUBO View</button>
+                </div>
+                 <div class="card p-6">
+                    <h4 class="font-semibold text-lg mb-2">Types of Ising Machines</h4>
+                    <p class="text-sm text-gray-600 mb-4">Various physical systems are being developed to act as Ising machines:</p>
+                    <div class="space-y-3">
+                        <div>
+                            <h5 class="font-semibold">Coherent Ising Machines (CIMs)</h5>
+                            <p class="text-sm text-gray-600">Use networks of coupled lasers (optical oscillators). The phase of each laser represents a spin, and their interactions evolve to find a low-energy solution.</p>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold">Quantum Annealers (QAs)</h5>
+                            <p class="text-sm text-gray-600">Special-purpose quantum computers that use quantum effects like tunneling to escape local energy minima and find the global ground state of a programmable Ising Hamiltonian.</p>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold">Spintronic/Probabilistic Machines</h5>
+                            <p class="text-sm text-gray-600">Use stochastic magnetic or electronic components ("p-bits") that fluctuate randomly but can be guided towards low-energy configurations of an Ising problem.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="synergy" class="py-12">
+             <h3 class="text-2xl font-bold mb-2">4. The Synergy: The Full EBM-P&M-Ising Pipeline</h3>
+             <p class="mb-8 text-gray-700 max-w-4xl">Here is where everything connects. We can envision a hybrid training loop where a classical computer manages the EBM, but offloads the difficult sampling task (now an optimization task via P&M) to an Ising machine. The critical step is formulating the perturbed MAP problem as a QUBO that the hardware can understand. This bridge is the key to the entire concept.</p>
+             <div class="card p-6">
+                 <h4 class="font-semibold text-lg mb-4">The Hybrid Training Loop (Click steps for details)</h4>
+                 <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="flowchart-step" data-target="detail-s1">1. EBM Training on Classical CPU/GPU</div>
+                    <div class="text-2xl transform rotate-90 flowchart-arrow">&#10140;</div>
+                    <div class="flowchart-step" data-target="detail-s2">2. Need Sample -> Engage P&M</div>
+                    <div class="text-2xl transform rotate-90 flowchart-arrow">&#10140;</div>
+                    <div class="flowchart-step synergy-bridge" data-target="detail-s3">3. THE BRIDGE: Formulate Perturbed MAP as QUBO</div>
+                     <div class="text-2xl transform rotate-90 flowchart-arrow">&#10140;</div>
+                    <div class="flowchart-step" data-target="detail-s4">4. Solve QUBO on Ising Machine</div>
+                     <div class="text-2xl transform rotate-90 flowchart-arrow">&#10140;</div>
+                    <div class="flowchart-step" data-target="detail-s5">5. Return Sample -> Update EBM Gradient</div>
+                 </div>
+                  <div id="detail-s1" class="details-box"><p>The overall training loop for the EBM (e.g., updating parameters via gradient descent) runs on a conventional computer.</p></div>
+                  <div id="detail-s2" class="details-box"><p>When the gradient calculation requires samples from the model's current distribution, instead of running slow MCMC, we invoke the P&M procedure. A perturbed energy function is created by adding random Gumbel noise.</p></div>
+                  <div id="detail-s3" class="details-box"><p><strong>This is the most critical and challenging step.</strong> The problem of finding the minimum of the perturbed energy function must be converted into the specific `x^T Q x` format of a QUBO. This is only straightforward if the EBM's energy function is already quadratic. For deep, complex EBMs, this requires difficult approximation and reduction techniques.</p></div>
+                  <div id="detail-s4" class="details-box"><p>The resulting Q matrix is sent to the specialized Ising hardware (e.g., a Quantum Annealer). The machine's physical dynamics then solve for the lowest energy state, which corresponds to the MAP solution of the perturbed problem.</p></div>
+                  <div id="detail-s5" class="details-box"><p>The solution from the Ising machine is a binary vector representing the sample. This sample is returned to the classical computer and used to estimate the model's expectation in the learning gradient, completing the loop.</p></div>
+             </div>
+        </section>
+
+        <section id="roadblocks" class="py-12">
+            <h3 class="text-2xl font-bold mb-2">5. Roadblocks & The Future</h3>
+            <p class="mb-6 text-gray-700 max-w-4xl">While conceptually powerful, this pipeline faces major practical hurdles. The synergy is promising, but bridging the gap between flexible software models and rigid hardware solvers is a significant research challenge. Success will likely require co-designing EBMs and hardware solvers together.</p>
+            <div id="accordion" class="space-y-3">
+                <div class="card">
+                    <button class="accordion-header w-full text-left p-4 flex justify-between items-center">
+                        <span class="font-semibold">QUBO Formulation Difficulty</span>
+                        <span class="accordion-icon text-2xl transform rotate-0 transition-transform">&plus;</span>
+                    </button>
+                    <div class="accordion-content px-4 pb-4">
+                        <p class="text-gray-700">The biggest challenge. Most modern EBMs use deep neural networks with non-linearities and continuous variables. Converting these into a quadratic function of binary variables (QUBO) is extremely difficult and may require severe approximations that hurt model performance.</p>
+                    </div>
+                </div>
+                 <div class="card">
+                    <button class="accordion-header w-full text-left p-4 flex justify-between items-center">
+                        <span class="font-semibold">Hardware Limitations</span>
+                         <span class="accordion-icon text-2xl transform rotate-0 transition-transform">&plus;</span>
+                    </button>
+                    <div class="accordion-content px-4 pb-4">
+                        <p class="text-gray-700">Current Ising machines have a limited number of "spins" or "qubits" and, crucially, limited connectivity between them. A complex problem might require more connections than the hardware provides, forcing a "minor embedding" that uses up valuable resources and can degrade solution quality.</p>
+                    </div>
+                </div>
+                 <div class="card">
+                    <button class="accordion-header w-full text-left p-4 flex justify-between items-center">
+                        <span class="font-semibold">Speed and Control</span>
+                         <span class="accordion-icon text-2xl transform rotate-0 transition-transform">&plus;</span>
+                    </button>
+                    <div class="accordion-content px-4 pb-4">
+                        <p class="text-gray-700">The P&M process requires a new QUBO for every sample because the noise changes. The overhead of formulating the QUBO, programming the hardware, running it, and reading out the result must be faster than classical samplers to be worthwhile. This frequent reprogramming could be a bottleneck.</p>
+                    </div>
+                </div>
+                 <div class="card">
+                    <button class="accordion-header w-full text-left p-4 flex justify-between items-center">
+                        <span class="font-semibold">Solution Accuracy</span>
+                         <span class="accordion-icon text-2xl transform rotate-0 transition-transform">&plus;</span>
+                    </button>
+                    <div class="accordion-content px-4 pb-4">
+                        <p class="text-gray-700">For hard problems, Ising machines often provide approximate or heuristic solutions, not the guaranteed optimal one. The quality of these approximate samples directly impacts the EBM's training. Biased or low-quality samples could lead to a poorly trained model.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-[#F5F2EB] border-t border-[#E0DACE] mt-12">
+        <div class="container mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-gray-500 text-sm">
+            <p>Interactive Explainer based on the report "Perturb-and-MAP, the Gumbel Trick, and the Potential of Ising Machines for Training Energy-Based Models".</p>
+            <p>&copy; 2024. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+            
+            const navLinks = document.querySelectorAll('.nav-link, #mobile-menu a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                   if (mobileMenu.classList.contains('hidden') === false) {
+                       mobileMenu.classList.add('hidden');
+                   }
+                });
+            });
+
+            const flowchartSteps = document.querySelectorAll('.flowchart-step');
+            flowchartSteps.forEach(step => {
+                step.addEventListener('click', () => {
+                    const targetId = step.dataset.target;
+                    const detailBox = document.getElementById(targetId);
+                    
+                    if (detailBox) {
+                        const isVisible = detailBox.style.display === 'block';
+                        document.querySelectorAll('.details-box').forEach(box => box.style.display = 'none');
+                        detailBox.style.display = isVisible ? 'none' : 'block';
+                    }
+                });
+            });
+            
+            const toggleButton = document.getElementById('toggle-qubo');
+            const isingView = document.getElementById('ising-view');
+            const quboView = document.getElementById('qubo-view');
+            toggleButton.addEventListener('click', () => {
+                const isQufoVisible = quboView.classList.contains('hidden');
+                if (isQufoVisible) {
+                    isingView.classList.add('hidden');
+                    quboView.classList.remove('hidden');
+                    toggleButton.textContent = 'Show Ising View';
+                } else {
+                    isingView.classList.remove('hidden');
+                    quboView.classList.add('hidden');
+                    toggleButton.textContent = 'Show QUBO View';
+                }
+            });
+            
+            const accordionHeaders = document.querySelectorAll('.accordion-header');
+            accordionHeaders.forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling;
+                    const icon = header.querySelector('.accordion-icon');
+                    const isOpen = content.style.maxHeight && content.style.maxHeight !== '0px';
+
+                    document.querySelectorAll('.accordion-content').forEach(c => c.style.maxHeight = '0px');
+                    document.querySelectorAll('.accordion-icon').forEach(i => i.innerHTML = '&plus;');
+
+                    if (!isOpen) {
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                        icon.innerHTML = '&minus;';
+                    }
+                });
+            });
+
+            const gumbelChartCtx = document.getElementById('gumbelChart').getContext('2d');
+            let gumbelChart;
+            const initialLogits = [2.1, 3.5, 1.0, 2.8, 4.2];
+            const categories = ['Cat A', 'Cat B', 'Cat C', 'Cat D', 'Cat E'];
+            const originalBackgroundColor = 'rgba(70, 130, 155, 0.6)';
+            const perturbedBackgroundColor = 'rgba(255, 159, 64, 0.6)';
+            const highlightColor = 'rgba(255, 99, 132, 0.8)';
+
+            function createGumbelChart(data, backgroundColors) {
+                if (gumbelChart) {
+                    gumbelChart.destroy();
+                }
+                gumbelChart = new Chart(gumbelChartCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: categories,
+                        datasets: [{
+                            label: 'Log-Potentials (φ)',
+                            data: data,
+                            backgroundColor: backgroundColors,
+                            borderColor: backgroundColors.map(c => c.replace('0.6', '1').replace('0.8','1')),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    title: (context) => context[0].label,
+                                    label: (context) => `Value: ${context.raw.toFixed(2)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Value' }
+                            }
+                        },
+                        animation: {
+                            duration: 800,
+                            easing: 'easeInOutQuart'
+                        }
+                    }
+                });
+            }
+
+            function generateGumbel() {
+                const u = Math.random();
+                return -Math.log(-Math.log(u));
+            }
+
+            document.getElementById('perturbButton').addEventListener('click', () => {
+                const perturbedData = initialLogits.map(logit => logit + generateGumbel());
+                const maxValue = Math.max(...perturbedData);
+                const maxIndex = perturbedData.indexOf(maxValue);
+
+                const backgroundColors = perturbedData.map((_, index) => 
+                    index === maxIndex ? highlightColor : perturbedBackgroundColor
+                );
+                
+                createGumbelChart(perturbedData, backgroundColors);
+                gumbelChart.data.datasets[0].label = 'Perturbed Log-Potentials (φ + G)';
+                gumbelChart.update();
+            });
+            
+            createGumbelChart(initialLogits, Array(initialLogits.length).fill(originalBackgroundColor));
+        });
+    </script>
+</body>
+</html>

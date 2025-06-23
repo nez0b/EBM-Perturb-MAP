@@ -1,0 +1,39 @@
+# Quick test configuration for validation
+
+model:
+  n_visible: 121  # 11x11 downsampled images
+  n_hidden: 16   # Smaller for faster testing
+  model_type: rbm
+
+training:
+  epochs: 1
+  learning_rate: 0.01
+  batch_size: 1
+  batch_limit: 1  # Only 1 batch for fastest test
+  optimizer: sgd
+  checkpoint_every: 1
+  checkpoint_path: test_checkpoint.pth
+
+data:
+  dataset: mnist
+  digit_filter: 6  # Train only on digit 6
+  image_size: [11, 11]  # Downsample to 11x11 (121 pixels)
+  data_root: ./data
+  train_split: true
+  download: true
+
+solver:
+  name: gurobi
+  time_limit: 5.0  # Even shorter time limit
+  suppress_output: true
+
+inference:
+  gibbs_steps: 10  # Much shorter for testing
+  num_generated_samples: 2
+  reconstruction_samples: 2
+
+logging:
+  log_file: test_training.log
+  save_plots: true
+  plot_every: 1
+  figures_dir: ./test_results/figures
