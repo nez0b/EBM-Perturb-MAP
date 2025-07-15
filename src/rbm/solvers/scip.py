@@ -110,19 +110,21 @@ class ScipSolver(QUBOSolver):
                 if sol is not None:
                     for i in range(n):
                         # Get variable value from solution
-                        val = model.getVal(x[i], sol)
+                        val = sol[x[i]]
                         if val > 0.5:  # Round to nearest binary value
                             solution[i] = 1
                 else:
-                    print(f"Warning: SCIP found status '{status}' but no solution available.")
-                    return np.random.randint(0, 2, size=n, dtype=np.int8)
+                    error_msg = f"SCIP found status '{status}' but no solution available"
+                    raise RuntimeError(error_msg)
             else:
-                print(f"Warning: SCIP did not find an optimal solution (Status: {status}).")
-                return np.random.randint(0, 2, size=n, dtype=np.int8)
+                error_msg = f"SCIP did not find an optimal solution (Status: {status})"
+                raise RuntimeError(error_msg)
             
             return solution
             
         except Exception as e:
-            error_msg = f"Error during SCIP optimization: {str(e)}"
-            print(f"Error: {error_msg}")
-            return np.random.randint(0, 2, size=n, dtype=np.int8)
+            if isinstance(e, RuntimeError):
+                # Re-raise RuntimeError from status handling above
+                raise
+            error_msg = f"SCIP solver failed to solve the problem: {str(e)}"
+            raise RuntimeError(error_msg) from e

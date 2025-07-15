@@ -1,0 +1,36 @@
+data:
+  data_root: ./data
+  dataset: mnist
+  digit_filter: null
+  download: true
+  image_size:
+  - 28
+  - 28
+  train_split: true
+inference:
+  gibbs_steps: 1000
+  num_generated_samples: 10
+  reconstruction_samples: 5
+logging:
+  figures_dir: ./figures
+  log_file: training.log
+  plot_every: 5
+  save_plots: true
+model:
+  model_type: rbm
+  n_hidden: 64
+  n_visible: 784
+solver:
+  name: scip
+  num_samples: 10
+  relaxation_schedule: 1
+  suppress_output: true
+  time_limit: 60.0
+training:
+  batch_limit: null
+  batch_size: 64
+  checkpoint_every: 5
+  checkpoint_path: rbm_checkpoint.pth
+  epochs: 10
+  learning_rate: 0.01
+  optimizer: sgd

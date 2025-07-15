@@ -4,11 +4,11 @@ A Python package for training Restricted Boltzmann Machines (RBMs) using the Per
 
 ## Overview
 
-This project implements RBM training using the "Perturb-and-MAP" approach, which uses Gumbel's trick to perturb energy functionals and then solves MAP optimization problems to obtain unbiased Boltzmann-distributed samples. The MAP optimization is formulated as a Quadratic Unconstrained Binary Optimization (QUBO) problem and solved using various solvers including Gurobi, SCIP, and Dirac-3.
+This project implements RBM training using the "Perturb-and-MAP" approach, which uses Gumbel's trick to perturb energy functionals and then solves MAP optimization problems to obtain unbiased Boltzmann-distributed samples. The MAP optimization is formulated as a Quadratic Unconstrained Binary Optimization (QUBO) problem and solved using various solvers including Gurobi, SCIP, Hexaly, and Dirac-3.
 
 ## Features
 
-- **Multiple QUBO Solvers**: Support for Gurobi, SCIP, and Dirac-3 quantum annealing
+- **Multiple QUBO Solvers**: Support for Gurobi, SCIP, Hexaly, and Dirac-3 quantum annealing
 - **Modular Architecture**: Clean separation of models, solvers, training, and inference
 - **Configuration Management**: YAML-based experiment configuration
 - **Comprehensive Inference**: Reconstruction, generation, and denoising capabilities
@@ -44,6 +44,9 @@ pip install -e .[gurobi]
 # For SCIP solver
 pip install -e .[scip]
 
+# For Hexaly solver (requires license)
+pip install -e .[hexaly]
+
 # For Dirac-3 quantum annealer
 pip install -e .[dirac]
 
@@ -73,7 +76,7 @@ python experiments/run_inference.py checkpoint.pth --config mnist_digit6 --task 
 ```python
 import torch
 from rbm.models.rbm import RBM
-from rbm.solvers.gurobi import GurobiSolver
+from rbm.solvers.gurobi import GurobiSolver  # or ScipSolver, HexalySolver, DiracSolver
 from rbm.training.trainer import Trainer
 from rbm.utils.config import ConfigManager
 
@@ -103,6 +106,7 @@ RBM/
 │   │   ├── base.py            # Abstract solver interface
 │   │   ├── gurobi.py          # Gurobi solver
 │   │   ├── scip.py            # SCIP solver
+│   │   ├── hexaly.py          # Hexaly solver
 │   │   └── dirac.py           # Dirac-3 solver
 │   ├── training/              # Training utilities
 │   │   ├── trainer.py         # Main training orchestration
@@ -148,7 +152,7 @@ data:
   image_size: [28, 28]
 
 solver:
-  name: gurobi
+  name: gurobi  # Options: gurobi, scip, hexaly, dirac
   time_limit: 60.0
   suppress_output: true
 
@@ -160,17 +164,22 @@ inference:
 ## QUBO Solvers
 
 ### Gurobi (Commercial)
-- **Installation**: Requires Gurobi license and `gurobipy` package
+- **Installation**: Requires Gurobi license and `gurobipy>=12.0.2` package
 - **Performance**: Excellent for small to medium problems
 - **Usage**: Default choice for most experiments
 
 ### SCIP (Open Source)
-- **Installation**: `pip install pyscipopt`
+- **Installation**: `pip install pyscipopt>=5.5.0`
 - **Performance**: Good open-source alternative
 - **Usage**: Uses linearization to handle quadratic objectives
 
+### Hexaly (Heuristic)
+- **Installation**: Requires Hexaly license and `hexaly-optimizer` package
+- **Performance**: Fast heuristic local search optimization
+- **Usage**: Good for larger problems and fast approximate solutions
+
 ### Dirac-3 (Quantum Annealing)
-- **Installation**: Requires `eqc-models` package and cloud authentication
+- **Installation**: Requires `eqc-models>=0.12.0` package and cloud authentication
 - **Performance**: Experimental quantum annealing approach
 - **Usage**: For research into quantum optimization
 
@@ -209,7 +218,7 @@ config_manager = ConfigManager()
 config = {
     'model': {'n_visible': 196, 'n_hidden': 32},
     'training': {'epochs': 5, 'learning_rate': 0.001},
-    'solver': {'name': 'scip'}
+    'solver': {'name': 'scip'}  # Options: 'gurobi', 'scip', 'hexaly', 'dirac'
 }
 
 config_manager.save(config, "my_experiment")

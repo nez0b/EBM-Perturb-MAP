@@ -26,12 +26,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gurobi = ["gurobipy>=11.0.0"]
-scip = ["pyscipopt>=5.0.0"]
+gurobi = ["gurobipy>=12.0.2"]
+scip = ["pyscipopt>=5.5.0"]
+hexaly = ["hexaly-optimizer"]
 dirac = ["eqc-models>=0.12.0"]
-all = ["gurobipy>=11.0.0", "pyscipopt>=5.0.0", "eqc-models>=0.12.0"]
+all = ["gurobipy>=12.0.2", "pyscipopt>=5.5.0", "hexaly-optimizer", "eqc-models>=0.12.0"]
 dev = [
-    "pytest>=7.0.0",
+    "pytest>=8.4.1",
     "pytest-cov>=4.0.0",
     "black>=22.0.0",
     "isort>=5.10.0",
