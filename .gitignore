@@ -8,6 +8,7 @@ outputs/
 figures/
 backups/
 .DS_Store
+inference_results/
 
 # C extensions
 *.so

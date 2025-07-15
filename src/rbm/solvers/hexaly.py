@@ -31,7 +31,7 @@ class HexalySolver(QUBOSolver):
         seed (int): Random seed for reproducibility.
     """
     
-    def __init__(self, time_limit: float = 60.0, nb_threads: int = 1, seed: int = 42):
+    def __init__(self, time_limit: float = 60.0, nb_threads: int = 4, seed: int = 42):
         if not self.is_available:
             raise ImportError("Hexaly is not available. Please install hexaly and check license.")
         
@@ -75,7 +75,7 @@ class HexalySolver(QUBOSolver):
         try:
             with hexaly.HexalyOptimizer() as optimizer:
                 # Set parameters
-                optimizer.get_param().set_time_limit(self.time_limit)
+                optimizer.get_param().set_time_limit(int(self.time_limit))
                 optimizer.get_param().set_nb_threads(self.nb_threads)
                 optimizer.get_param().set_seed(self.seed)
                 
@@ -91,14 +91,14 @@ class HexalySolver(QUBOSolver):
                 # Add diagonal terms
                 for i in range(n_vars):
                     if Q[i, i] != 0:
-                        objective += Q[i, i] * x[i]
+                        objective += float(Q[i, i]) * x[i]
                 
                 # Add off-diagonal terms (both upper and lower triangular)
                 for i in range(n_vars):
                     for j in range(i + 1, n_vars):
                         if Q[i, j] != 0:
                             # Since QUBO is x^T Q x, we need Q[i,j] + Q[j,i] coefficient
-                            coeff = Q[i, j] + Q[j, i]
+                            coeff = float(Q[i, j] + Q[j, i])
                             if coeff != 0:
                                 objective += coeff * x[i] * x[j]
                 

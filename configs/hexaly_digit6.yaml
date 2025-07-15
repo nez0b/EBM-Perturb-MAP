@@ -1,0 +1,39 @@
+# Configuration for training RBM on MNIST digit 6 (matching original notebook)
+
+model:
+  n_visible: 784  # 28x28 downsampled images
+  n_hidden: 64
+  model_type: rbm
+
+training:
+  epochs: 5
+  learning_rate: 0.02
+  batch_size: 2
+  batch_limit: 11  # Limit to ~10 batches per epoch for faster experimentation
+  optimizer: sgd
+  checkpoint_every: 2
+  checkpoint_path: ./pm_rbm_digit6_hexaly_checkpoint.pth
+
+data:
+  dataset: mnist
+  digit_filter: 6  # Train only on digit 6
+  image_size: [28, 28]  # Downsample to 28x28 (784 pixels)
+  data_root: ./data
+  train_split: true
+  download: true
+
+solver:
+  name: hexaly  # Use Hexaly solver
+  num_samples: 10
+  
+
+inference:
+  gibbs_steps: 500
+  num_generated_samples: 10
+  reconstruction_samples: 5
+
+logging:
+  log_file: training_digit6_hexaly.log
+  save_plots: true
+  plot_every: 5
+  figures_dir: ./figures

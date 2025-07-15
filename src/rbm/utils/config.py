@@ -115,7 +115,7 @@ def get_default_config() -> Dict[str, Any]:
             'download': True
         },
         'solver': {
-            'name': 'gurobi',  # 'gurobi', 'scip', 'dirac'
+            'name': 'gurobi',  # 'gurobi', 'scip', 'hexaly', 'dirac'
             'time_limit': 60.0,
             'suppress_output': True,
             'num_samples': 10,  # For Dirac solver
@@ -166,9 +166,12 @@ def validate_config(config: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("learning_rate must be positive")
     if config['training']['batch_size'] <= 0:
         raise ValueError("batch_size must be positive")
+    if config['training']['batch_limit'] is not None:
+        if not isinstance(config['training']['batch_limit'], int) or config['training']['batch_limit'] <= 0:
+            raise ValueError("batch_limit must be a positive integer or None")
     
     # Validate solver parameters
-    valid_solvers = ['gurobi', 'scip', 'dirac']
+    valid_solvers = ['gurobi', 'scip', 'hexaly', 'dirac']
     if config['solver']['name'] not in valid_solvers:
         raise ValueError(f"solver name must be one of {valid_solvers}")
     

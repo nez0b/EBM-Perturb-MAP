@@ -22,6 +22,7 @@ from rbm.data.mnist import load_mnist_data
 from rbm.utils.config import ConfigManager, validate_config, load_config
 from rbm.solvers.gurobi import GurobiSolver
 from rbm.solvers.scip import ScipSolver
+from rbm.solvers.hexaly import HexalySolver
 from rbm.solvers.dirac import DiracSolver
 
 
@@ -78,6 +79,14 @@ def create_solver(config: dict):
         return ScipSolver(
             time_limit=solver_config.get('time_limit', 60.0)
         )
+    elif solver_name == 'hexaly':
+        if not HexalySolver.is_available:
+            raise RuntimeError("Hexaly solver is not available")
+        return HexalySolver(
+            time_limit=solver_config.get('time_limit', 120.0),
+            nb_threads=solver_config.get('nb_threads', 4),
+            seed=solver_config.get('seed', 42)
+        )
     elif solver_name == 'dirac':
         if not DiracSolver.is_available:
             raise RuntimeError("Dirac solver is not available")
@@ -129,7 +138,7 @@ def main():
     )
     parser.add_argument(
         '--solver',
-        choices=['gurobi', 'scip', 'dirac'],
+        choices=['gurobi', 'scip', 'hexaly', 'dirac'],
         help='Override solver choice'
     )
     parser.add_argument(
@@ -146,6 +155,11 @@ def main():
         '--batch-size',
         type=int,
         help='Override batch size'
+    )
+    parser.add_argument(
+        '--batch-limit',
+        type=int,
+        help='Limit number of batches per epoch (default: unlimited)'
     )
     parser.add_argument(
         '--output-dir',
@@ -186,6 +200,8 @@ def main():
         config['training']['learning_rate'] = args.learning_rate
     if args.batch_size:
         config['training']['batch_size'] = args.batch_size
+    if args.batch_limit:
+        config['training']['batch_limit'] = args.batch_limit
     
     # Update output paths
     output_dir = Path(args.output_dir)

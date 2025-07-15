@@ -24,6 +24,7 @@ from rbm.utils.config import ConfigManager, validate_config, load_config
 from rbm.utils.visualization import plot_reconstruction, plot_generation, plot_interpolation
 from rbm.solvers.gurobi import GurobiSolver
 from rbm.solvers.scip import ScipSolver
+from rbm.solvers.hexaly import HexalySolver
 from rbm.solvers.dirac import DiracSolver
 
 
@@ -84,6 +85,14 @@ def create_solver(config: dict):
             raise RuntimeError("SCIP solver is not available")
         return ScipSolver(
             time_limit=solver_config.get('time_limit', 60.0)
+        )
+    elif solver_name == 'hexaly':
+        if not HexalySolver.is_available:
+            raise RuntimeError("Hexaly solver is not available")
+        return HexalySolver(
+            time_limit=solver_config.get('time_limit', 60.0),
+            nb_threads=solver_config.get('nb_threads', 4),
+            seed=solver_config.get('seed', 42)
         )
     elif solver_name == 'dirac':
         if not DiracSolver.is_available:
@@ -220,7 +229,7 @@ def main():
     )
     parser.add_argument(
         '--solver',
-        choices=['gurobi', 'scip', 'dirac'],
+        choices=['gurobi', 'scip', 'hexaly', 'dirac'],
         help='Override solver choice'
     )
     parser.add_argument(

@@ -47,11 +47,12 @@ class Trainer:
         self.training_history = []
         
         # Configuration with defaults
-        self.epochs = config.get('epochs', 10)
-        self.learning_rate = config.get('learning_rate', 0.01)
-        self.batch_limit = config.get('batch_limit', None)  # For limiting batches during training
-        self.checkpoint_every = config.get('checkpoint_every', 5)
-        self.checkpoint_path = config.get('checkpoint_path', 'rbm_checkpoint.pth')
+        training_config = config.get('training', {})
+        self.epochs = training_config.get('epochs', 10)
+        self.learning_rate = training_config.get('learning_rate', 0.01)
+        self.batch_limit = training_config.get('batch_limit', None)  # For limiting batches during training
+        self.checkpoint_every = training_config.get('checkpoint_every', 5)
+        self.checkpoint_path = training_config.get('checkpoint_path', 'rbm_checkpoint.pth')
         
         self.model.train()
     
