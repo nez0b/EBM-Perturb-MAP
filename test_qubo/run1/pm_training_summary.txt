@@ -1,0 +1,13 @@
+=== RBM Perturb-and-MAP Training Summary ===
+Configuration: hexaly
+Method: PerturbAndMAP(Hexaly)
+Total epochs: 40
+Total time: 40003.08s
+Dataset size: 5918
+Final reconstruction error: 0.049247
+Hyperparameters: {'solver': 'Hexaly', 'gumbel_scale': 1.0, 'solver_timeout': 5.0, 'learning_rate': 0.01, 'sampler_hyperparameters': {'solver': 'Hexaly', 'gumbel_scale': 1.0, 'solver_timeout': 5.0, 'max_retries': 3, 'seed': 42}}
+Solver statistics: {'solver_name': 'Hexaly', 'avg_solve_time': 4.996133463978768, 'min_solve_time': 4.699409008026123, 'max_solve_time': 5.9975550174713135, 'success_rate': 1.0, 'total_solves': 8000, 'total_failures': 0}
+
+
+
+python experiments/train_and_infer_qubo.py --resume test_qubo/rbm_pm_checkpoint.pth --solver hexaly --epochs 40 --batch-size 1 --solver-timeout 5 --output-dir ./test_qubo --figure6 --num-samples 2 --batch-limit 200

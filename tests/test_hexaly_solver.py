@@ -102,13 +102,13 @@ class TestHexalySolver:
             # Test default initialization
             solver1 = HexalySolver()
             assert solver1.time_limit == 60.0
-            assert solver1.nb_threads == 1
+            assert solver1.nb_threads == 4  # Default is 4, not 1
             assert solver1.seed == 42
             
             # Test custom parameters
-            solver2 = HexalySolver(time_limit=120.0, nb_threads=4, seed=123)
+            solver2 = HexalySolver(time_limit=120.0, nb_threads=8, seed=123)
             assert solver2.time_limit == 120.0
-            assert solver2.nb_threads == 4
+            assert solver2.nb_threads == 8
             assert solver2.seed == 123
         except ImportError:
             pytest.skip("Hexaly solver not available")

@@ -4,11 +4,13 @@ __pycache__/
 *$py.class
 
 data/
+!src/rbm/data/
 outputs/
 figures/
 backups/
 .DS_Store
 inference_results/
+cd_inference_results/
 
 # C extensions
 *.so

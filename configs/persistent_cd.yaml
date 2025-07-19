@@ -1,0 +1,55 @@
+# Configuration for Persistent Contrastive Divergence training
+model:
+  n_visible: 784
+  n_hidden: 64
+  model_type: rbm
+
+training:
+  epochs: 20
+  learning_rate: 0.01
+  batch_size: 64
+  batch_limit: null
+  optimizer: sgd
+  checkpoint_every: 5
+  checkpoint_path: rbm_pcd_checkpoint.pth
+  method: contrastive_divergence
+
+cd_params:
+  k_steps: 5  # CD-5 with persistent chains
+  persistent: true
+  use_momentum: true
+  momentum: 0.7
+  temperature: 1.0
+  seed: 42
+
+pm_params:
+  gumbel_scale: 1.0
+  solver_timeout: 60.0
+  max_retries: 3
+  seed: 42
+
+data:
+  dataset: mnist
+  digit_filter: null
+  image_size: [28, 28]
+  data_root: ./data
+  train_split: true
+  download: true
+
+solver:
+  name: gurobi
+  time_limit: 60.0
+  suppress_output: true
+  num_samples: 10
+  relaxation_schedule: 1
+
+inference:
+  gibbs_steps: 1000
+  num_generated_samples: 10
+  reconstruction_samples: 5
+
+logging:
+  log_file: pcd_training.log
+  save_plots: true
+  plot_every: 5
+  figures_dir: ./figures

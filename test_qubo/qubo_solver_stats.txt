@@ -1,0 +1,7 @@
+=== QUBO Solver Performance Statistics ===
+Solver: hexaly
+Configuration: {'name': 'hexaly', 'time_limit': 5.0, 'suppress_output': False, 'num_samples': 10, 'relaxation_schedule': 1}
+Statistics: {'solver_name': 'Hexaly', 'avg_solve_time': 4.976127874851227, 'min_solve_time': 4.521315097808838, 'max_solve_time': 5.3022449016571045, 'success_rate': 1.0, 'total_solves': 20, 'total_failures': 0}
+Average reconstruction error: 0.113616
+Average denoising error: 0.112961
+Average generation time: 4.9732s

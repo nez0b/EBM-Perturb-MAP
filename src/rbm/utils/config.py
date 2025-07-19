@@ -104,7 +104,8 @@ def get_default_config() -> Dict[str, Any]:
             'batch_limit': None,
             'optimizer': 'sgd',
             'checkpoint_every': 5,
-            'checkpoint_path': 'rbm_checkpoint.pth'
+            'checkpoint_path': 'rbm_checkpoint.pth',
+            'method': 'perturb_map'  # 'contrastive_divergence' or 'perturb_map'
         },
         'data': {
             'dataset': 'mnist',
@@ -120,6 +121,20 @@ def get_default_config() -> Dict[str, Any]:
             'suppress_output': True,
             'num_samples': 10,  # For Dirac solver
             'relaxation_schedule': 1  # For Dirac solver
+        },
+        'cd_params': {
+            'k_steps': 1,  # Number of Gibbs sampling steps
+            'persistent': False,  # Use Persistent CD
+            'use_momentum': False,  # Use momentum in Gibbs sampling
+            'momentum': 0.5,  # Momentum coefficient
+            'temperature': 1.0,  # Temperature for sampling
+            'seed': 42  # Random seed for reproducibility
+        },
+        'pm_params': {
+            'gumbel_scale': 1.0,  # Scale parameter for Gumbel noise
+            'solver_timeout': 60.0,  # Timeout for QUBO solver
+            'max_retries': 3,  # Maximum retries for failed solves
+            'seed': 42  # Random seed for reproducibility
         },
         'inference': {
             'gibbs_steps': 1000,
@@ -169,6 +184,34 @@ def validate_config(config: Dict[str, Any]) -> Dict[str, Any]:
     if config['training']['batch_limit'] is not None:
         if not isinstance(config['training']['batch_limit'], int) or config['training']['batch_limit'] <= 0:
             raise ValueError("batch_limit must be a positive integer or None")
+    
+    # Validate training method
+    valid_methods = ['contrastive_divergence', 'perturb_map']
+    if config['training']['method'] not in valid_methods:
+        raise ValueError(f"training method must be one of {valid_methods}")
+    
+    # Validate method-specific parameters
+    if config['training']['method'] == 'contrastive_divergence':
+        cd_params = config['cd_params']
+        if cd_params['k_steps'] <= 0:
+            raise ValueError("CD k_steps must be positive")
+        if not isinstance(cd_params['persistent'], bool):
+            raise ValueError("CD persistent must be boolean")
+        if not isinstance(cd_params['use_momentum'], bool):
+            raise ValueError("CD use_momentum must be boolean")
+        if not (0 <= cd_params['momentum'] <= 1):
+            raise ValueError("CD momentum must be between 0 and 1")
+        if cd_params['temperature'] <= 0:
+            raise ValueError("CD temperature must be positive")
+    
+    elif config['training']['method'] == 'perturb_map':
+        pm_params = config['pm_params']
+        if pm_params['gumbel_scale'] <= 0:
+            raise ValueError("P&M gumbel_scale must be positive")
+        if pm_params['solver_timeout'] <= 0:
+            raise ValueError("P&M solver_timeout must be positive")
+        if pm_params['max_retries'] <= 0:
+            raise ValueError("P&M max_retries must be positive")
     
     # Validate solver parameters
     valid_solvers = ['gurobi', 'scip', 'hexaly', 'dirac']
