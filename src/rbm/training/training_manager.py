@@ -108,7 +108,8 @@ class TrainingManager:
             return HexalySolver(
                 time_limit=solver_config.get('time_limit', 120.0),
                 nb_threads=solver_config.get('nb_threads', 4),
-                seed=solver_config.get('seed', 42)
+                seed=solver_config.get('seed', 42),
+                suppress_output=solver_config.get('suppress_output', True)
             )
         elif solver_name == 'dirac':
             from ..solvers.dirac import DiracSolver

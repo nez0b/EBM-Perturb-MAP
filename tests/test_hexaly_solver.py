@@ -104,12 +104,14 @@ class TestHexalySolver:
             assert solver1.time_limit == 60.0
             assert solver1.nb_threads == 4  # Default is 4, not 1
             assert solver1.seed == 42
+            assert solver1.suppress_output == True  # New parameter
             
             # Test custom parameters
-            solver2 = HexalySolver(time_limit=120.0, nb_threads=8, seed=123)
+            solver2 = HexalySolver(time_limit=120.0, nb_threads=8, seed=123, suppress_output=False)
             assert solver2.time_limit == 120.0
             assert solver2.nb_threads == 8
             assert solver2.seed == 123
+            assert solver2.suppress_output == False  # New parameter
         except ImportError:
             pytest.skip("Hexaly solver not available")
     
@@ -474,6 +476,263 @@ class TestHexalySolver:
         objective_value = solution.T @ Q @ solution
         assert np.isfinite(objective_value)
     
+    # ========== New Fix Tests: Time Limits and Output Suppression ==========
+    
+    @pytest.mark.parametrize("time_limit,expected_iterations", [
+        (0.1, 500),    # 0.1 * 5000 base rate
+        (0.5, 2500),   # 0.5 * 5000 base rate  
+        (0.9, 4500),   # 0.9 * 5000 base rate
+        (0.0, 1),      # Edge case: max(1, 0)
+    ])
+    def test_sub_second_time_limits_use_iteration_control(self, time_limit, expected_iterations):
+        """Test that sub-second time limits use iteration-based control instead of time-based."""
+        if not HEXALY_IMPORT_SUCCESS:
+            pytest.skip("Hexaly solver import failed")
+        
+        try:
+            import hexaly.optimizer as hexaly
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+        
+        try:
+            # Mock the Hexaly components to verify correct parameter setting
+            from unittest.mock import patch, MagicMock
+            
+            with patch('rbm.solvers.hexaly.hexaly') as mock_hexaly:
+                # Setup mock chain
+                mock_optimizer = MagicMock()
+                mock_param = MagicMock()
+                mock_model = MagicMock()
+                
+                mock_hexaly.HexalyOptimizer.return_value.__enter__.return_value = mock_optimizer
+                mock_optimizer.get_param.return_value = mock_param
+                mock_optimizer.get_model.return_value = mock_model
+                
+                # Mock solution extraction
+                mock_vars = [MagicMock() for _ in range(2)]
+                for i, var in enumerate(mock_vars):
+                    var.get_value.return_value = i % 2
+                mock_model.bool.side_effect = mock_vars
+                
+                solver = HexalySolver(time_limit=time_limit)
+                Q = np.array([[1, -1], [-1, 1]], dtype=np.float64)
+                
+                solution = solver.solve(Q)
+                
+                # Verify iteration-based control is used for sub-second limits
+                mock_param.set_time_limit.assert_called_once_with(3600)  # High time limit
+                mock_param.set_iteration_limit.assert_called_once_with(expected_iterations)
+                
+                # Verify solution is returned correctly
+                assert len(solution) == 2
+                assert all(x in [0, 1] for x in solution)
+                
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+    
+    @pytest.mark.parametrize("time_limit", [1.0, 2.0, 10.0, 60.0])
+    def test_normal_time_limits_use_time_control(self, time_limit):
+        """Test that time limits >= 1.0 seconds use normal time-based control."""
+        if not HEXALY_IMPORT_SUCCESS:
+            pytest.skip("Hexaly solver import failed")
+        
+        try:
+            import hexaly.optimizer as hexaly
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+        
+        try:
+            from unittest.mock import patch, MagicMock
+            
+            with patch('rbm.solvers.hexaly.hexaly') as mock_hexaly:
+                # Setup mock chain
+                mock_optimizer = MagicMock()
+                mock_param = MagicMock()
+                mock_model = MagicMock()
+                
+                mock_hexaly.HexalyOptimizer.return_value.__enter__.return_value = mock_optimizer
+                mock_optimizer.get_param.return_value = mock_param
+                mock_optimizer.get_model.return_value = mock_model
+                
+                # Mock solution extraction
+                mock_vars = [MagicMock() for _ in range(2)]
+                for i, var in enumerate(mock_vars):
+                    var.get_value.return_value = i % 2
+                mock_model.bool.side_effect = mock_vars
+                
+                solver = HexalySolver(time_limit=time_limit)
+                Q = np.array([[1, -1], [-1, 1]], dtype=np.float64)
+                
+                solution = solver.solve(Q)
+                
+                # Verify time-based control is used for >= 1.0 second limits
+                mock_param.set_time_limit.assert_called_once_with(int(time_limit))
+                mock_param.set_iteration_limit.assert_not_called()
+                
+                # Verify solution is returned correctly
+                assert len(solution) == 2
+                assert all(x in [0, 1] for x in solution)
+                
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+    
+    def test_suppress_output_true_sets_verbosity_zero(self):
+        """Test that suppress_output=True sets verbosity to 0."""
+        if not HEXALY_IMPORT_SUCCESS:
+            pytest.skip("Hexaly solver import failed")
+        
+        try:
+            import hexaly.optimizer as hexaly
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+        
+        try:
+            from unittest.mock import patch, MagicMock
+            
+            with patch('rbm.solvers.hexaly.hexaly') as mock_hexaly:
+                # Setup mock chain
+                mock_optimizer = MagicMock()
+                mock_param = MagicMock()
+                mock_model = MagicMock()
+                
+                mock_hexaly.HexalyOptimizer.return_value.__enter__.return_value = mock_optimizer
+                mock_optimizer.get_param.return_value = mock_param
+                mock_optimizer.get_model.return_value = mock_model
+                
+                # Mock solution extraction
+                mock_var = MagicMock()
+                mock_var.get_value.return_value = 1
+                mock_model.bool.return_value = mock_var
+                
+                solver = HexalySolver(suppress_output=True)
+                Q = np.array([[1]], dtype=np.float64)
+                
+                solver.solve(Q)
+                
+                # Verify verbosity is set to 0 (suppressed)
+                mock_param.set_verbosity.assert_called_once_with(0)
+                
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+    
+    def test_suppress_output_false_sets_verbosity_one(self):
+        """Test that suppress_output=False sets verbosity to 1."""
+        if not HEXALY_IMPORT_SUCCESS:
+            pytest.skip("Hexaly solver import failed")
+        
+        try:
+            import hexaly.optimizer as hexaly
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+        
+        try:
+            from unittest.mock import patch, MagicMock
+            
+            with patch('rbm.solvers.hexaly.hexaly') as mock_hexaly:
+                # Setup mock chain
+                mock_optimizer = MagicMock()
+                mock_param = MagicMock()
+                mock_model = MagicMock()
+                
+                mock_hexaly.HexalyOptimizer.return_value.__enter__.return_value = mock_optimizer
+                mock_optimizer.get_param.return_value = mock_param
+                mock_optimizer.get_model.return_value = mock_model
+                
+                # Mock solution extraction
+                mock_var = MagicMock()
+                mock_var.get_value.return_value = 0
+                mock_model.bool.return_value = mock_var
+                
+                solver = HexalySolver(suppress_output=False)
+                Q = np.array([[1]], dtype=np.float64)
+                
+                solver.solve(Q)
+                
+                # Verify verbosity is set to 1 (verbose)
+                mock_param.set_verbosity.assert_called_once_with(1)
+                
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+    
+    def test_all_parameters_correctly_propagated_to_hexaly(self):
+        """Test that all constructor parameters are correctly passed to Hexaly optimizer."""
+        if not HEXALY_IMPORT_SUCCESS:
+            pytest.skip("Hexaly solver import failed")
+        
+        try:
+            import hexaly.optimizer as hexaly
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+        
+        try:
+            from unittest.mock import patch, MagicMock
+            
+            with patch('rbm.solvers.hexaly.hexaly') as mock_hexaly:
+                # Setup mock chain
+                mock_optimizer = MagicMock()
+                mock_param = MagicMock()
+                mock_model = MagicMock()
+                
+                mock_hexaly.HexalyOptimizer.return_value.__enter__.return_value = mock_optimizer
+                mock_optimizer.get_param.return_value = mock_param
+                mock_optimizer.get_model.return_value = mock_model
+                
+                # Mock solution extraction
+                mock_var = MagicMock()
+                mock_var.get_value.return_value = 1
+                mock_model.bool.return_value = mock_var
+                
+                # Test with specific parameters
+                solver = HexalySolver(time_limit=5.0, nb_threads=8, seed=123, suppress_output=False)
+                Q = np.array([[1]], dtype=np.float64)
+                
+                solver.solve(Q)
+                
+                # Verify all parameters are correctly set
+                mock_param.set_time_limit.assert_called_once_with(5)  # >= 1.0, so time-based
+                mock_param.set_nb_threads.assert_called_once_with(8)
+                mock_param.set_seed.assert_called_once_with(123)
+                mock_param.set_verbosity.assert_called_once_with(1)  # suppress_output=False
+                
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+    
+    def test_solver_error_handling_with_hexaly_exception(self):
+        """Test that Hexaly exceptions are properly wrapped as RuntimeError."""
+        if not HEXALY_IMPORT_SUCCESS:
+            pytest.skip("Hexaly solver import failed")
+        
+        try:
+            import hexaly.optimizer as hexaly
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+        
+        try:
+            from unittest.mock import patch, MagicMock
+            
+            with patch('rbm.solvers.hexaly.hexaly') as mock_hexaly:
+                # Setup mock chain
+                mock_optimizer = MagicMock()
+                mock_param = MagicMock()
+                mock_model = MagicMock()
+                
+                mock_hexaly.HexalyOptimizer.return_value.__enter__.return_value = mock_optimizer
+                mock_optimizer.get_param.return_value = mock_param
+                mock_optimizer.get_model.return_value = mock_model
+                
+                # Make the solver raise an exception
+                mock_optimizer.solve.side_effect = Exception("Hexaly internal error")
+                
+                solver = HexalySolver()
+                Q = np.array([[1, -1], [-1, 1]], dtype=np.float64)
+                
+                # Verify that the Hexaly exception is wrapped as RuntimeError
+                with pytest.raises(RuntimeError, match="Hexaly solver failed to solve the problem"):
+                    solver.solve(Q)
+                
+        except ImportError:
+            pytest.skip("Hexaly solver not available")
+
     # ========== Integration Tests ==========
     
     def test_solver_with_rbm_qubo(self):

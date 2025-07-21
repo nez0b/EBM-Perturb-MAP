@@ -30,15 +30,17 @@ class HexalySolver(QUBOSolver):
                           uses iteration-based limiting instead of time-based limiting.
         nb_threads (int): Number of threads to use for optimization.
         seed (int): Random seed for reproducibility.
+        suppress_output (bool): Whether to suppress Hexaly's console output.
     """
     
-    def __init__(self, time_limit: float = 60.0, nb_threads: int = 4, seed: int = 42):
+    def __init__(self, time_limit: float = 60.0, nb_threads: int = 4, seed: int = 42, suppress_output: bool = True):
         if not self.is_available:
             raise ImportError("Hexaly is not available. Please install hexaly and check license.")
         
         self.time_limit = time_limit
         self.nb_threads = nb_threads
         self.seed = seed
+        self.suppress_output = suppress_output
     
     @property
     def name(self) -> str:
@@ -94,6 +96,12 @@ class HexalySolver(QUBOSolver):
                 
                 param.set_nb_threads(self.nb_threads)
                 param.set_seed(self.seed)
+                
+                # Set verbosity level
+                if self.suppress_output:
+                    param.set_verbosity(0)  # Suppress all output
+                else:
+                    param.set_verbosity(1)  # Normal verbosity
                 
                 # Create model
                 model = optimizer.get_model()

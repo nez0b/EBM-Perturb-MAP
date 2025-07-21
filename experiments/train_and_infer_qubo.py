@@ -397,7 +397,10 @@ def run_inference_with_qubo(config: Dict[str, Any], checkpoint_path: str, output
             inference_solver = GurobiSolver(time_limit=time_limit)
         elif solver_name == 'hexaly':
             from rbm.solvers.hexaly import HexalySolver  
-            inference_solver = HexalySolver(time_limit=time_limit)
+            inference_solver = HexalySolver(
+                time_limit=time_limit,
+                suppress_output=config['solver'].get('suppress_output', True)
+            )
         elif solver_name == 'scip':
             from rbm.solvers.scip import SCIPSolver
             inference_solver = SCIPSolver(time_limit=time_limit)
