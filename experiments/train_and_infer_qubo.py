@@ -258,8 +258,9 @@ def train_rbm_with_qubo(config: Dict[str, Any], output_dir: Path, resume_checkpo
     print(f"Learning rate: {config['training']['learning_rate']}")
     print(f"Batch size: {config['training']['batch_size']}")
     
-    # Update checkpoint path
-    config['training']['checkpoint_path'] = str(output_dir / 'rbm_pm_checkpoint.pth')
+    # Update checkpoint path to use config-specified filename in output directory
+    checkpoint_filename = Path(config['training']['checkpoint_path']).name
+    config['training']['checkpoint_path'] = str(output_dir / checkpoint_filename)
     config['logging']['figures_dir'] = str(output_dir / 'figures')
     
     # Load training data
@@ -373,15 +374,67 @@ def run_inference_with_qubo(config: Dict[str, Any], checkpoint_path: str, output
     print(f"Training method: {manager.training_method.name}")
     print(f"Checkpoint epoch: {checkpoint.get('epoch', 'N/A')}")
     
+    # Initialize inference method and solver
+    inference_config = config['inference']
+    inference_method = inference_config.get('method', 'gibbs').lower()
+    
+    # Validate inference method
+    if inference_method not in ['qubo', 'gibbs']:
+        raise ValueError(f"Invalid inference method '{inference_method}'. Must be 'qubo' or 'gibbs'")
+    
+    print(f"Inference method: {inference_method}")
+    
+    # Initialize QUBO solver if needed
+    inference_solver = None
+    if inference_method == 'qubo':
+        solver_name = inference_config.get('qubo_solver', 'hexaly').lower()
+        time_limit = inference_config.get('time_limit', 10.0)
+        print(f"QUBO solver: {solver_name}, timeout: {time_limit}s")
+        
+        # Initialize the solver for inference
+        if solver_name == 'gurobi':
+            from rbm.solvers.gurobi import GurobiSolver
+            inference_solver = GurobiSolver(time_limit=time_limit)
+        elif solver_name == 'hexaly':
+            from rbm.solvers.hexaly import HexalySolver  
+            inference_solver = HexalySolver(time_limit=time_limit)
+        elif solver_name == 'scip':
+            from rbm.solvers.scip import SCIPSolver
+            inference_solver = SCIPSolver(time_limit=time_limit)
+        elif solver_name == 'dirac':
+            from rbm.solvers.dirac import DiracSolver
+            inference_solver = DiracSolver(time_limit=time_limit)
+        else:
+            raise ValueError(f"Unknown QUBO solver: {solver_name}")
+    
     # Load test data
     print("Loading test data...")
     test_loader, _ = load_mnist_data(config, train=False)
-    test_batch = next(iter(test_loader))[0]
     
-    # Select images for inference
+    # Select images for inference - collect from multiple batches if needed
     inference_config = config['inference']
-    num_samples = min(inference_config['reconstruction_samples'], test_batch.size(0))
-    test_images = test_batch[:num_samples]
+    desired_samples = inference_config['reconstruction_samples']
+    
+    test_images = []
+    total_collected = 0
+    for batch, _ in test_loader:
+        batch_size = batch.size(0)
+        needed = desired_samples - total_collected
+        if needed <= 0:
+            break
+        
+        # Take what we need from this batch
+        take = min(needed, batch_size)
+        test_images.append(batch[:take])
+        total_collected += take
+    
+    if test_images:
+        test_images = torch.cat(test_images, dim=0)
+        num_samples = test_images.size(0)
+    else:
+        raise RuntimeError("No test images loaded")
+    
+    print(f"Collected {num_samples} test images from {desired_samples} requested")
     
     print(f"Running inference on {num_samples} test images")
     
@@ -396,14 +449,28 @@ def run_inference_with_qubo(config: Dict[str, Any], checkpoint_path: str, output
         
         for i in pbar:
             image = test_images[i:i+1]
-            
-            # Use the training method's negative phase for reconstruction
-            # This demonstrates the QUBO sampling process
             v_pos = image.view(image.size(0), -1)
-            v_neg, h_neg = manager.training_method.negative_phase(v_pos)
             
-            # Reconstruct from the negative phase
-            reconstructed = manager.model.reconstruct(h_neg)
+            # Choose inference method based on configuration
+            if inference_method == 'qubo':
+                # QUBO-based reconstruction: v -> h (via QUBO solver) -> v'
+                # Flatten input for QUBO processing
+                v_input = (v_pos.view(-1) > 0.5).float()
+                
+                # Use QUBO solver to sample hidden layer
+                Q_h, _ = manager.model.create_qubo_for_sampling(v_input)
+                h_sample_np = inference_solver.solve(Q_h)
+                h_sample = torch.from_numpy(h_sample_np).float().unsqueeze(0)
+                
+                # Reconstruct from QUBO-sampled hidden state
+                reconstructed = manager.model.reconstruct(h_sample)
+                
+            else:  # gibbs inference
+                # Gibbs-based reconstruction: v -> h (via Gibbs) -> v'
+                v_neg, h_neg = manager.training_method.negative_phase(v_pos)
+                
+                # Reconstruct from Gibbs-sampled hidden state
+                reconstructed = manager.model.reconstruct(h_neg)
             
             # Ensure values are in [0,1] range for visualization
             reconstructed = torch.clamp(reconstructed, 0.0, 1.0)
@@ -461,13 +528,27 @@ def run_inference_with_qubo(config: Dict[str, Any], checkpoint_path: str, output
         
         for i in pbar:
             noisy_image = noisy_images[i:i+1]
-            
-            # Use QUBO sampling for denoising
             v_pos = noisy_image.view(noisy_image.size(0), -1)
-            v_neg, h_neg = manager.training_method.negative_phase(v_pos)
             
-            # Reconstruct the denoised image
-            denoised = manager.model.reconstruct(h_neg)
+            # Choose inference method based on configuration
+            if inference_method == 'qubo':
+                # QUBO-based denoising: v -> h (via QUBO solver) -> v'
+                v_input = (v_pos.view(-1) > 0.5).float()
+                
+                # Use QUBO solver to sample hidden layer
+                Q_h, _ = manager.model.create_qubo_for_sampling(v_input)
+                h_sample_np = inference_solver.solve(Q_h)
+                h_sample = torch.from_numpy(h_sample_np).float().unsqueeze(0)
+                
+                # Reconstruct denoised image from QUBO-sampled hidden state
+                denoised = manager.model.reconstruct(h_sample)
+                
+            else:  # gibbs inference
+                # Gibbs-based denoising: v -> h (via Gibbs) -> v'
+                v_neg, h_neg = manager.training_method.negative_phase(v_pos)
+                
+                # Reconstruct denoised image from Gibbs-sampled hidden state
+                denoised = manager.model.reconstruct(h_neg)
             denoised_images.append(denoised)
             
             # Calculate denoising error (compared to original)
@@ -526,13 +607,27 @@ def run_inference_with_qubo(config: Dict[str, Any], checkpoint_path: str, output
         for i in pbar:
             start_time = time.time()
             
-            # Use QUBO joint sampling for generation
-            # Start with random visible state
-            random_v = torch.rand(1, config['model']['n_visible'])
-            
-            # Sample from joint distribution using QUBO
-            v_sample, h_sample = manager.training_method.negative_phase(random_v)
-            generated_samples.append(v_sample)
+            # Use appropriate generation method based on inference method
+            if inference_method == 'qubo':
+                # QUBO-based generation: use inference solver for sampling
+                # Start with random visible state
+                random_v = torch.rand(1, config['model']['n_visible'])
+                
+                # Use the inference solver to sample hidden layer given random visible
+                v_input = (random_v.view(-1) > 0.5).float()
+                Q_h, _ = manager.model.create_qubo_for_sampling(v_input)
+                h_sample_np = inference_solver.solve(Q_h)
+                h_sample = torch.from_numpy(h_sample_np).float().unsqueeze(0)
+                
+                # Generate visible sample from hidden sample
+                v_sample = manager.model.reconstruct(h_sample)
+                
+                generated_samples.append(v_sample)
+            else:
+                # Gibbs-based generation using training method
+                random_v = torch.rand(1, config['model']['n_visible'])
+                v_sample, h_sample = manager.training_method.negative_phase(random_v)
+                generated_samples.append(v_sample)
             
             gen_time = time.time() - start_time
             generation_times.append(gen_time)

@@ -11,6 +11,8 @@ backups/
 .DS_Store
 inference_results/
 cd_inference_results/
+h128/
+test_qubo/
 
 # C extensions
 *.so

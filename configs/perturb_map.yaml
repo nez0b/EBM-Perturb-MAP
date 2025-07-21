@@ -1,14 +1,14 @@
 # Configuration for Perturb-and-MAP training
 model:
   n_visible: 784
-  n_hidden: 64
+  n_hidden: 128
   model_type: rbm
 
 training:
-  epochs: 20
-  learning_rate: 0.01
-  batch_size: 64
-  batch_limit: null  # Set to integer to limit batches per epoch (useful for testing)
+  epochs: 10
+  learning_rate: 0.1
+  batch_size: 1
+  batch_limit: 100  # Set to integer to limit batches per epoch (useful for testing)
   optimizer: sgd
   checkpoint_every: 1
   checkpoint_path: rbm_pm_checkpoint.pth
@@ -38,13 +38,16 @@ data:
 
 solver:
   name: hexaly
-  time_limit: 10.0
-  suppress_output: false
+  time_limit: 0.5
+  suppress_output: true
   num_samples: 10
   relaxation_schedule: 1
 
 inference:
-  gibbs_steps: 1000
+  method: qubo  # 'qubo' or 'gibbs' - inference method selection
+  qubo_solver: hexaly  # QUBO solver for inference (can differ from training)
+  time_limit: 10.0  # solver timeout for inference (separate from training config)
+  gibbs_steps: 1000  # for gibbs inference method
   num_generated_samples: 10
   reconstruction_samples: 5
 

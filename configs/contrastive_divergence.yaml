@@ -1,17 +1,17 @@
 # Configuration for Contrastive Divergence training
 model:
   n_visible: 784
-  n_hidden: 64
+  n_hidden: 128
   model_type: rbm
 
 training:
   epochs: 20
-  learning_rate: 0.01
-  batch_size: 64
-  batch_limit: null
+  learning_rate: 0.1
+  batch_size: 4
+  batch_limit: 100
   optimizer: sgd
-  checkpoint_every: 5
-  checkpoint_path: rbm_cd_checkpoint.pth
+  checkpoint_every: 1
+  checkpoint_path: rbm_cd1_checkpoint.pth
   method: contrastive_divergence
 
 cd_params:
@@ -38,13 +38,16 @@ data:
 
 solver:
   name: hexaly
-  time_limit: 10.0
+  time_limit: 1.0
   suppress_output: false
   num_samples: 10
   relaxation_schedule: 1
 
 inference:
-  gibbs_steps: 1000
+  method: qubo  # 'qubo' or 'gibbs' - inference method selection
+  qubo_solver: hexaly  # QUBO solver for inference (can differ from training)
+  time_limit: 10.0  # solver timeout for inference (separate from training config)
+  gibbs_steps: 1000  # for gibbs inference method
   num_generated_samples: 10
   reconstruction_samples: 5
 

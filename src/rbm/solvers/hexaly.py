@@ -26,7 +26,8 @@ class HexalySolver(QUBOSolver):
     Note that Hexaly is a heuristic solver and does not guarantee optimal solutions.
     
     Args:
-        time_limit (float): Time limit for optimization in seconds.
+        time_limit (float): Time limit for optimization in seconds. For values < 1.0,
+                          uses iteration-based limiting instead of time-based limiting.
         nb_threads (int): Number of threads to use for optimization.
         seed (int): Random seed for reproducibility.
     """
@@ -75,9 +76,24 @@ class HexalySolver(QUBOSolver):
         try:
             with hexaly.HexalyOptimizer() as optimizer:
                 # Set parameters
-                optimizer.get_param().set_time_limit(int(self.time_limit))
-                optimizer.get_param().set_nb_threads(self.nb_threads)
-                optimizer.get_param().set_seed(self.seed)
+                param = optimizer.get_param()
+                
+                if self.time_limit < 1.0:
+                    # For sub-second limits, use iteration-based control
+                    # Rough estimate: ~1000-10000 iterations per second for typical problems
+                    # Scale iterations based on desired time: iterations = time * base_rate
+                    base_iterations_per_second = 5000
+                    max_iterations = max(1, int(self.time_limit * base_iterations_per_second))
+                    
+                    param.set_time_limit(3600)  # Set high time limit (1 hour)
+                    param.set_iteration_limit(max_iterations)  # Control via iterations
+                else:
+                    # For >= 1.0 seconds, use normal time-based control
+                    param.set_time_limit(int(self.time_limit))
+                    # Remove any iteration limit (use default)
+                
+                param.set_nb_threads(self.nb_threads)
+                param.set_seed(self.seed)
                 
                 # Create model
                 model = optimizer.get_model()
