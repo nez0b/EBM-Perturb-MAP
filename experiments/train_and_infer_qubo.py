@@ -116,6 +116,7 @@ python train_and_infer_qubo.py --resume ./training_run1/rbm_pm_checkpoint.pth --
 """
 
 import argparse
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -677,6 +678,56 @@ def run_inference_with_qubo(config: Dict[str, Any], checkpoint_path: str, output
     print("\nInference completed successfully!")
 
 
+def generate_auto_output_dir(config: Dict[str, Any]) -> str:
+    """
+    Generate automatic output directory name from config parameters.
+    
+    Format: h{hidden-size}-{method-solver}-bs{batch-size}-bl{batch-limit}-tl{time-limit}s
+    Example: h128-pm_hexaly-bs1-bl100-tl0.5s
+    
+    Args:
+        config: Configuration dictionary containing model and training parameters.
+        
+    Returns:
+        Automatically generated directory name string.
+    """
+    # Extract parameters
+    hidden_size = config['model']['n_hidden']
+    method = config['training']['method'] 
+    solver = config['solver']['name']
+    batch_size = config['training']['batch_size']
+    batch_limit = config['training'].get('batch_limit', None)
+    time_limit = config['solver']['time_limit']
+    
+    # Handle method abbreviation
+    method_abbrev = 'pm' if method == 'perturb_map' else method[:2]
+    
+    # Format batch limit
+    batch_limit_str = str(batch_limit) if batch_limit is not None else 'inf'
+    
+    # Generate directory name
+    dir_name = f"h{hidden_size}-{method_abbrev}_{solver}-bs{batch_size}-bl{batch_limit_str}-tl{time_limit}s"
+    
+    return dir_name
+
+
+def copy_config_file(config_file_path: str, output_dir: Path):
+    """
+    Copy the configuration file to the output directory.
+    
+    Args:
+        config_file_path: Path to the original configuration file.
+        output_dir: Target output directory path.
+    """
+    if config_file_path and Path(config_file_path).exists():
+        config_filename = Path(config_file_path).name
+        dest_path = output_dir / config_filename
+        shutil.copy2(config_file_path, dest_path)
+        print(f"Configuration file copied to: {dest_path}")
+    else:
+        print("Warning: Configuration file not found or path not provided - skipping copy")
+
+
 def main():
     """Main function with command-line interface."""
     parser = argparse.ArgumentParser(
@@ -687,6 +738,7 @@ Examples:
   %(prog)s                           # Train and infer with default settings
   %(prog)s --solver scip             # Use SCIP solver
   %(prog)s --figure6                 # Train on digit 6
+  %(prog)s --config-file configs/perturb_map.yaml --auto-output  # Auto-generated output dir
   %(prog)s --task inference --checkpoint model.pth  # Inference only
         """
     )
@@ -713,6 +765,11 @@ Examples:
         type=str,
         default='./outputs',
         help='Directory for outputs (default: ./outputs)'
+    )
+    parser.add_argument(
+        '--auto-output',
+        action='store_true',
+        help='Automatically create output directory with descriptive name: h{hidden-size}-{method-solver}-bs{batch-size}-bl{batch-limit}-tl{time-limit}s'
     )
     
     # Solver options
@@ -821,15 +878,13 @@ Examples:
     # Print header
     print_header()
     
-    # Create output directory
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Load configuration
+    # Load configuration first (needed for auto-output directory naming)
     if args.config_file:
         config = load_config(args.config_file)
+        config_file_path = args.config_file
     else:
         config = load_default_config()
+        config_file_path = None
     
     # Apply command-line overrides
     if args.solver:
@@ -863,6 +918,21 @@ Examples:
     
     # Validate configuration
     config = validate_config(config)
+    
+    # Handle output directory creation (auto-output takes precedence)
+    if args.auto_output:
+        auto_dir_name = generate_auto_output_dir(config)
+        output_dir = Path(auto_dir_name)
+        print(f"Auto-generated output directory: {auto_dir_name}")
+    else:
+        output_dir = Path(args.output_dir)
+    
+    # Create output directory
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy configuration file to output directory
+    if config_file_path:
+        copy_config_file(config_file_path, output_dir)
     
     # Check solver availability
     solver_name = config['solver']['name']
