@@ -5,10 +5,10 @@ model:
   model_type: rbm
 
 training:
-  epochs: 100
+  epochs: 10
   learning_rate: 0.1
   batch_size: 1
-  batch_limit: 10  # Set to integer to limit batches per epoch (useful for testing)
+  batch_limit: 100  # Set to integer to limit batches per epoch (useful for testing)
   optimizer: sgd
   checkpoint_every: 1
   checkpoint_path: rbm_pm_checkpoint.pth

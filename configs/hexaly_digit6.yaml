@@ -2,14 +2,14 @@
 
 model:
   n_visible: 784  # 28x28 downsampled images
-  n_hidden: 64
+  n_hidden: 128
   model_type: rbm
 
 training:
-  epochs: 5
+  epochs: 10
   learning_rate: 0.02
-  batch_size: 2
-  batch_limit: 11  # Limit to ~10 batches per epoch for faster experimentation
+  batch_size: 1
+  batch_limit: 100  # Limit to ~10 batches per epoch for faster experimentation
   optimizer: sgd
   checkpoint_every: 2
   checkpoint_path: ./pm_rbm_digit6_hexaly_checkpoint.pth

@@ -7,8 +7,8 @@ model:
 training:
   epochs: 20
   learning_rate: 0.1
-  batch_size: 16
-  batch_limit: 500
+  batch_size: 1
+  batch_limit: 100
   optimizer: sgd
   checkpoint_every: 1
   checkpoint_path: rbm_pcd5_checkpoint.pth
